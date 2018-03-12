@@ -33,7 +33,7 @@
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * @last-modified Sat Mar 10 2018 19:50:51 GMT-0800 (PST)
+ * @last-modified Sun Mar 11 2018 18:27:18 GMT-0700 (PDT)
  */
 
 /**
@@ -51,15 +51,32 @@
  * m11, m12, m13, m21, m22, m23, m31, m32, m33 -- represent the rotation, scale, and shear transformations.
  * m11, m12, m21, m22 -- represent the elements in the 2D space - m33, m31, m32, m13, m23 = 0 for 2-D
  *
- * @param {number} xLimit The X axis wraparound.
- * @param {number} yLimit The Y axis wraparound.
+ * @param {number} xLimit The X axis wraparound limit.
+ * @param {number} yLimit The Y axis wraparound limit.
  */
 function Matrix4x4(xLimit, yLimit) {
   this.value = [[1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 1, 0], [0, 0, 0, 1]]; // 4x4 identity matrix
 
   this.xWrapAround = xLimit;
   this.yWrapAround = yLimit;
+
+  /** @type {{x: number, y:number, z:number}}
+   * Keeps track of the current scaling factor that was applied to this transformation matrix.
+   */
+  this.currentScaleFactor = { x: 1, y: 1, z: 1 };
+
+  /** @type {number}
+   * Keeps track of the current rotation applied to this transformation matrix.
+   */
+  this.currentRotationAngle = 0;
 }
+
+/**
+ * Resets the matrix back to an identity matrix removing all transformations.
+ */
+Matrix4x4.prototype.resetMatrix = function() {
+  this.value = [[1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 1, 0], [0, 0, 0, 1]]; // 4x4 identity matrix
+};
 
 /**
  * Gets the position vector.
@@ -70,6 +87,22 @@ Matrix4x4.prototype.getPosition = function() {
     x: this.value[0][3],
     y: this.value[1][3]
   };
+};
+
+/**
+ * Gets the rotation angle from the transformation matrix.
+ * @returns {number} The current rotation angle.
+ */
+Matrix4x4.prototype.getRotation = function() {
+  return this.currentRotationAngle;
+};
+
+/**
+ * Gets the current scale factor.
+ * @returns {{x:number, y:number, z:number}} The current scale factor applied.
+ */
+Matrix4x4.prototype.getScale = function() {
+  return this.currentScaleFactor;
 };
 
 /**
@@ -117,10 +150,17 @@ Matrix4x4.prototype.translate2D = function(dx, dy) {
 
   this.value = this.multMatrix(tm); // multiply the translation matrix
 
-  if (!this.xWrapAround || !this.yWrapAround) return; // wraparound
+  if (!this.xWrapAround || !this.yWrapAround) return; // no wrap-around
 
-  this.value[0][3] = this.value[0][3] % this.xWrapAround; // wrap-around X axis
-  this.value[1][3] = this.value[1][3] % this.yWrapAround; // wrap-around Y axis
+  // wrap-around X axis
+  if (this.value[0][3] < 0) this.value[0][3] = this.xWrapAround + this.value[0][3];
+  if (this.value[0][3] > this.xWrapAround)
+    this.value[0][3] = this.value[0][3] - this.xWrapAround;
+
+  // wrap-around Y axis
+  if (this.value[1][3] < 0) this.value[1][3] = this.yWrapAround + this.value[1][3];
+  if (this.value[1][3] > this.yWrapAround)
+    this.value[1][3] = this.value[1][3] - this.yWrapAround;
 };
 
 /**
@@ -133,6 +173,9 @@ Matrix4x4.prototype.translate2D = function(dx, dy) {
 Matrix4x4.prototype.scale2D = function(sx, sy) {
   if (isNaN(sx) || isNaN(sy)) return;
   if (!sx || !sy) return;
+
+  this.currentScaleFactor.x = this.currentScaleFactor.x * sx;
+  this.currentScaleFactor.y = this.currentScaleFactor.y * sy;
 
   const sm = [[sx, 0, 0, 0], [0, sy, 0, 0], [0, 0, 1, 0], [0, 0, 0, 1]]; // 2D scale matrix
 
@@ -149,11 +192,35 @@ Matrix4x4.prototype.rotate2D = function(theta) {
   if (isNaN(theta)) return;
   if (!theta) return;
 
+  this.currentRotationAngle = (this.currentRotationAngle + theta) % 360.0;
+
   let cosT = Math.cos(theta);
   let sinT = Math.sin(theta);
 
   const rm = [[cosT, -sinT, 0, 0], [sinT, cosT, 0, 0], [0, 0, 1, 0], [0, 0, 0, 1]]; // 2D rotation matrix
 
+  this.value = this.multMatrix(rm);
+};
+
+/**
+ * Performs rotation for the given angle after reverting the old rotation.
+ * @param {number} theta The angle to rotate by.
+ */
+Matrix4x4.prototype.rRotate2D = function(theta) {
+  if (isNaN(theta)) return;
+  if (!theta) return;
+
+  let cosT = Math.cos(this.currentRotationAngle);
+  let sinT = Math.sin(this.currentRotationAngle);
+  const rrm = [[cosT, sinT, 0, 0], [-sinT, cosT, 0, 0], [0, 0, 1, 0], [0, 0, 0, 1]]; // 2D rotation matrix
+
+  this.currentRotationAngle = theta;
+  
+  cosT = Math.cos(theta);
+  sinT = Math.sin(theta);
+  const rm = [[cosT, -sinT, 0, 0], [sinT, cosT, 0, 0], [0, 0, 1, 0], [0, 0, 0, 1]]; // 2D rotation matrix
+
+  this.value = this.multMatrix(rrm);
   this.value = this.multMatrix(rm);
 };
 

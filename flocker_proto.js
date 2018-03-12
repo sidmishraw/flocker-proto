@@ -33,51 +33,48 @@
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * @last-modified Sat Mar 10 2018 21:08:58 GMT-0800 (PST)
+ * @last-modified Sun Mar 11 2018 18:33:43 GMT-0700 (PDT)
  */
 
-/**
- * The global list of all the swallows.
- * @type {Swallow[]}
- */
-let swallows = [];
+/** Some helpful constants*/
+/** @type {number} */
+const MAX_WRAP_AROUND_WIDTH = 1024; //640;
+
+/** @type {number} */
+const MAX_WRAP_AROUND_HEIGHT = 800; //360;
+
+/** @type {number} */
+const MAX_VELOCITY = 2.0;
+
+/** @type {number} */
+const MAX_ACCELERATION = 0.03;
+
+/** @type {Flocker} */
+const flocker = new Flocker();
 
 /**
  * Sets up the simulation.
  */
 function setup() {
-  createCanvas(400, 400);
+  createCanvas(MAX_WRAP_AROUND_WIDTH, MAX_WRAP_AROUND_HEIGHT);
 
   angleMode(DEGREES); // sets the angle mode to degrees
   rectMode(CENTER); // sets x,y co-ordinates for the retangle to be its CENTER
   imageMode(CENTER); // sets x,y co-ordinates for the image to be its CENTER
 
-  // for (let x = 0; x < 100; x++) {
-  //   swallows.push(new Swallow(random(50, 250), random(50, 250)));
-  // }
+  // start out with 100 Swallows for the simulation
+  for (let x = 0; x < 100; x++) {
+    flocker.addSwallow(random(MAX_WRAP_AROUND_WIDTH), random(MAX_WRAP_AROUND_HEIGHT));
+  }
 }
 
-// Draw loop
+/**
+ * Draw loop.
+ */
 function draw() {
   clear();
-
-  drawGrid(); // draw the grid for reference
-
-  swallows.forEach(swallow => swallow.fly()); // render all the swallows
-}
-
-// draws a grid -- good for debugging the screen
-function drawGrid() {
-  stroke("#000000");
-  fill(120);
-  for (var x = -width; x < width; x += 40) {
-    line(x, -height, x, height);
-    text(x, x + 1, 12);
-  }
-  for (var y = -height; y < height; y += 40) {
-    line(-width, y, width, y);
-    text(y, 1, y + 12);
-  }
+  // flocker.drawGrid();
+  flocker.simulate();
 }
 
 /**
@@ -85,8 +82,53 @@ function drawGrid() {
  * I add a Swallow to the flock.
  */
 function mouseReleased() {
-  swallows.push(new Swallow(0, 0));
+  flocker.addSwallow(mouseX, mouseY);
 }
+
+/**
+ * The Flocker app instance.
+ */
+function Flocker() {
+  /**
+   * The global list of all the swallows.
+   * @type {Swallow[]}
+   */
+  this.swallows = [];
+}
+
+/**
+ * Adds a Swallow to the flocker simulation.
+ * @param {number} x The initial X coordinate of the Swallow.
+ * @param {number} y The initial Y coordinate of the Swallow.
+ */
+Flocker.prototype.addSwallow = function(x, y) {
+  this.swallows.push(new Swallow(x, y));
+};
+
+/**
+ * Runs the Flocker simulation.
+ */
+Flocker.prototype.simulate = function() {
+  this.swallows.forEach(swallow => swallow.fly());
+};
+
+/**
+ * Draws a grid -- good for debugging the screen
+ */
+Flocker.prototype.drawGrid = function drawGrid() {
+  stroke("#000000");
+  fill(120);
+
+  for (var x = -width; x < width; x += 40) {
+    line(x, -height, x, height);
+    text(x, x + 1, 12);
+  }
+
+  for (var y = -height; y < height; y += 40) {
+    line(-width, y, width, y);
+    text(y, 1, y + 12);
+  }
+};
 
 /**
  * Swallow is a bird that will be flocking with its friends.
@@ -97,35 +139,45 @@ function mouseReleased() {
 function Swallow(x, y) {
   this.image = loadImage("./swallow-img.png"); // the Swallow itself.
 
-  this.position = createVector(x, y); // position of the Swallow.
-  this.velocity = createVector(0.003, 0.003); // the velocity of the Swallow.
-  this.acceleration = createVector(0.0, 0.0); // the acceleration of the Swallow.
-
-  this.maxForce = 0.03; // the maximum acceleration as per Daniel Shiffman's implementation
-  this.maxSpeed = 2.0; // the maximum speed as per Daniel Shiffman's implementation
+  const theta = random(360.0); // generate a random angle for the direction of the Swallow
 
   /* global Matrix4x4 */
-  /** @type {Matrix4x4} */
-  this.tMatrix = new Matrix4x4(400, 400); // the swallow's transformation matrix
+  /** @type {Matrix4x4}
+   * This 4x4 matrix is responsible for Swallow's position, angle, and size.
+   * Intialized to an identity matrix.
+   */
+  this.transformMatrix = new Matrix4x4(MAX_WRAP_AROUND_WIDTH, MAX_WRAP_AROUND_HEIGHT);
 
-  this.tMatrix.scale2D(0.031, 0.031); // scale the image to 0.031 since it is very, very big!
+  this.velocity = createVector(Math.cos(theta), Math.sin(theta)); // the velocity of the Swallow.
+  this.acceleration = createVector(0.0, 0.0); // the acceleration of the Swallow.
+
+  this.transformMatrix.scale2D(0.0322, 0.0322); // scale the image to 0.031 since it is very, very big!
+  this.transformMatrix.rRotate2D(this.velocity.heading() + 90.0); // rotate
+  this.transformMatrix.translate2D(x, y); // translate to the starting point
+
+  this.maxAcceleration = MAX_ACCELERATION; // the maximum acceleration as per Daniel Shiffman's implementation
+  this.maxVelocity = MAX_VELOCITY; // the maximum speed as per Daniel Shiffman's implementation
 }
+
+/**
+ * @internal
+ * Changes the direction of the Swallow to match it's velocity's direction.
+ */
+Swallow.prototype.changeDirection = function() {
+  this.transformMatrix.rRotate2D(0.1);
+};
 
 /**
  * The swallow flies.
  */
 Swallow.prototype.fly = function() {
   this.velocity.add(this.acceleration); // v = u + at (let the velocity get updated every tick).
-  this.velocity.limit(this.maxspeed); // max speed limited.
+  this.velocity.limit(this.maxVelocity); // max speed upper bounded.
 
-  this.position.add(this.velocity); // s = vt, position changes with respect to the velocity.
-  this.position.x = this.position.x % width;
-  this.position.y = this.position.y % height;
+  this.transformMatrix.translate2D(this.velocity.x, this.velocity.y); // translates with wrap-around
+  this.transformMatrix.rRotate2D(this.velocity.heading() + 90.0);
 
   this.acceleration.mult(0); // reset the acceleration for each cycle.
-
-  // console.log(`velocity = ${this.velocity}`);
-  // console.log(`position = ${this.position}`);
 
   this.render(); // render the Swallow
 };
@@ -134,7 +186,7 @@ Swallow.prototype.fly = function() {
  * Applies a force to the Swallow.
  * @param {p5.Vector} force The force that will let each Swallow accelerate.
  * F = ma => a = F / m
- * Assuming each Swallow has same mass, then (a = F).
+ * Assuming each Swallow has same unit mass, then (a = F).
  */
 Swallow.prototype.applyForce = function(force) {
   this.acceleration.add(force);
@@ -146,12 +198,9 @@ Swallow.prototype.applyForce = function(force) {
 Swallow.prototype.render = function() {
   push(); // push the current matrix onto the stack
 
-  this.tMatrix.translate2D(this.position.x, this.position.y); // translates with wraparound
-  applyMatrix(...this.tMatrix.getParamsForApplying());
+  applyMatrix(...this.transformMatrix.getParamsForApplying());
 
   image(this.image, 0, 0);
 
   pop(); // pop the current matrix from the stack, replacing it to the backed up matrix
-
-  console.log(`position = ${JSON.stringify(this.tMatrix.getPosition())}`);
 };
