@@ -33,15 +33,16 @@
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * @last-modified Sun Mar 11 2018 18:33:43 GMT-0700 (PDT)
+ * @last-modified Sun Mar 11 2018 22:15:12 GMT-0700 (PDT)
  */
 
+//#region GLOBAL_CONSTANTS
 /** Some helpful constants*/
 /** @type {number} */
-const MAX_WRAP_AROUND_WIDTH = 1024; //640;
+const MAX_WRAP_AROUND_WIDTH = 816; //640;
 
 /** @type {number} */
-const MAX_WRAP_AROUND_HEIGHT = 800; //360;
+const MAX_WRAP_AROUND_HEIGHT = 480; //360;
 
 /** @type {number} */
 const MAX_VELOCITY = 2.0;
@@ -52,6 +53,26 @@ const MAX_ACCELERATION = 0.03;
 /** @type {Flocker} */
 const flocker = new Flocker();
 
+/** @type {number} */
+const DESIRED_SEPARATION = 100.0;
+
+/** @type {number} */
+const DESIRED_ALIGNMENT = 50.0;
+
+/** @type {number} */
+const DESIRED_COHESION = 50.0;
+
+/** @type {number} */
+const SEPRATION_WEIGHT = 3.5;
+
+/** @type {number} */
+const ALIGNMENT_WEIGHT = 2.0;
+
+/** @type {number} */
+const COHESION_WEIGHT = 2.0;
+//#endregion GLOBAL_CONSTANTS
+
+//#region P5JS_STUFF
 /**
  * Sets up the simulation.
  */
@@ -63,7 +84,7 @@ function setup() {
   imageMode(CENTER); // sets x,y co-ordinates for the image to be its CENTER
 
   // start out with 100 Swallows for the simulation
-  for (let x = 0; x < 100; x++) {
+  for (let x = 0; x < 30; x++) {
     flocker.addSwallow(random(MAX_WRAP_AROUND_WIDTH), random(MAX_WRAP_AROUND_HEIGHT));
   }
 }
@@ -84,7 +105,9 @@ function draw() {
 function mouseReleased() {
   flocker.addSwallow(mouseX, mouseY);
 }
+//#endregion P5JS_STUFF
 
+//#region Flocker
 /**
  * The Flocker app instance.
  */
@@ -129,7 +152,9 @@ Flocker.prototype.drawGrid = function drawGrid() {
     text(y, 1, y + 12);
   }
 };
+//#endregion Flocker
 
+//#region Swallow
 /**
  * Swallow is a bird that will be flocking with its friends.
  *
@@ -146,13 +171,17 @@ function Swallow(x, y) {
    * This 4x4 matrix is responsible for Swallow's position, angle, and size.
    * Intialized to an identity matrix.
    */
-  this.transformMatrix = new Matrix4x4(MAX_WRAP_AROUND_WIDTH, MAX_WRAP_AROUND_HEIGHT);
+  this.transformMatrix = new Matrix4x4(
+    MAX_WRAP_AROUND_WIDTH,
+    MAX_WRAP_AROUND_HEIGHT,
+    33.56
+  );
 
   this.velocity = createVector(Math.cos(theta), Math.sin(theta)); // the velocity of the Swallow.
   this.acceleration = createVector(0.0, 0.0); // the acceleration of the Swallow.
 
   this.transformMatrix.scale2D(0.0322, 0.0322); // scale the image to 0.031 since it is very, very big!
-  this.transformMatrix.rRotate2D(this.velocity.heading() + 90.0); // rotate
+  this.transformMatrix.rRotate2D(Math.abs(this.velocity.heading())); // rotate
   this.transformMatrix.translate2D(x, y); // translate to the starting point
 
   this.maxAcceleration = MAX_ACCELERATION; // the maximum acceleration as per Daniel Shiffman's implementation
@@ -161,21 +190,206 @@ function Swallow(x, y) {
 
 /**
  * @internal
+ *
+ * Seeks and applies the steering force towards the desired target location.
+ * Note: as per Daniel Shiffman's implementation.
+ * @param {p5.Vector} target The target position.
+ * @returns {p5.Vector} STEER = DESIRED MINUS VELOCITY, the steer force vector.
+ */
+Swallow.prototype.seek = function(target) {
+  const currentPosition = this.transformMatrix.getPosition();
+
+  /** @type {p5.Vector}
+   * A vector pointing from the position to the target.
+   */
+  const desired = target.sub(createVector(currentPosition.x, currentPosition.y));
+
+  desired.normalize(); // make it into a unit vector
+  desired.mult(this.maxVelocity); // Scale to maximum velocity
+
+  /** @type {p5.Vector}
+   * Steering = Desired minus Velocity
+   */
+  const steer = desired.sub(this.velocity);
+  steer.limit(this.maxAcceleration); // Limit to maximum steering force = maximum acceleration
+
+  return steer;
+};
+
+/**
+ * @internal
+ *
+ * Computes the separation depending on the desired separation -- defaults to 25.0
+ * Steers the Swallows away from each other depending on the desired separation.
+ *
+ * @returns {p5.Vector} The steering force that will separate this Swallow from its
+ * neighbors.
+ */
+Swallow.prototype.separation = function() {
+  const desiredSeparation = DESIRED_SEPARATION;
+  const steer = createVector(0, 0);
+  let count = 0;
+
+  flocker.swallows.forEach(swallow => {
+    const currentPosition = createVector(
+      this.transformMatrix.getPosition().x,
+      this.transformMatrix.getPosition().y
+    );
+    const targetPosition = createVector(
+      swallow.transformMatrix.getPosition().x,
+      swallow.transformMatrix.getPosition().y
+    );
+
+    const distance = currentPosition.dist(targetPosition);
+
+    // If the distance is greater than 0 and less than an arbitrary amount
+    // 0 when the swallow is itself
+    if (distance > 0 && distance < desiredSeparation) {
+      // Calculate vector pointing away from neighbor
+      const diff = currentPosition.sub(targetPosition);
+      diff.normalize();
+      diff.div(distance); // Weight by distance
+      steer.add(diff);
+      count++;
+    }
+  });
+
+  // averaging the steering force
+  if (count > 0) {
+    steer.div(count);
+  }
+
+  // As long as the vector is greater than 0
+  if (steer.mag() > 0) {
+    // Implement Reynolds: Steering = Desired - Velocity
+    steer.normalize();
+    steer.mult(this.maxVelocity);
+    steer.sub(this.velocity);
+    steer.limit(this.maxAcceleration);
+  }
+
+  return steer;
+};
+
+/**
+ * @internal
+ *
+ * For every neighboring Swallow, computes the average velocity. Responsible for this
+ * Swallow's alignment with respect to the group(?)
+ * @returns {p5.Vector} The alignment steering vector.
+ */
+Swallow.prototype.alignment = function() {
+  const neighborDistance = DESIRED_ALIGNMENT;
+  const sum = createVector(0, 0);
+  let count = 0;
+
+  flocker.swallows.forEach(swallow => {
+    const currentPosition = createVector(
+      this.transformMatrix.getPosition().x,
+      this.transformMatrix.getPosition().y
+    );
+    const targetPosition = createVector(
+      swallow.transformMatrix.getPosition().x,
+      swallow.transformMatrix.getPosition().y
+    );
+
+    const distance = currentPosition.dist(targetPosition);
+
+    if (distance > 0 && distance < neighborDistance) {
+      sum.add(swallow.velocity);
+      count++;
+    }
+  });
+
+  let steer = createVector(0, 0); // the alignment's steering force
+
+  if (count > 0) {
+    sum.div(count);
+
+    // Implement Reynolds: Steering = Desired - Velocity
+    sum.normalize();
+    sum.mult(this.maxVelocity);
+
+    steer = sum.sub(this.velocity);
+    steer.limit(this.maxAcceleration);
+  }
+
+  return steer;
+};
+
+/**
+ * @internal
+ *
+ * Computes the steering force towards the center of all the nearby Swallow's positions.
+ * @returns {p5.Vector} The steering force vector.
+ */
+Swallow.prototype.cohesion = function() {
+  const neighborDistance = DESIRED_COHESION;
+  const sum = createVector(0, 0); // Start with empty vector to accumulate all positions
+  let count = 0;
+
+  flocker.swallows.forEach(swallow => {
+    const currentPosition = createVector(
+      this.transformMatrix.getPosition().x,
+      this.transformMatrix.getPosition().y
+    );
+    const targetPosition = createVector(
+      swallow.transformMatrix.getPosition().x,
+      swallow.transformMatrix.getPosition().y
+    );
+
+    const distance = currentPosition.dist(targetPosition);
+
+    if (distance > 0 && distance < neighborDistance) {
+      sum.add(targetPosition); // Add position
+      count++;
+    }
+  });
+
+  let steer = createVector(0, 0);
+
+  if (count > 0) {
+    sum.div(count);
+    steer = this.seek(sum); // Steer towards the position
+  }
+
+  return steer;
+};
+
+/**
+ * @internal
+ *
  * Changes the direction of the Swallow to match it's velocity's direction.
  */
 Swallow.prototype.changeDirection = function() {
-  this.transformMatrix.rRotate2D(0.1);
+  this.transformMatrix.rotate2D(Math.abs(0.1));
 };
 
 /**
  * The swallow flies.
  */
 Swallow.prototype.fly = function() {
+  const s = this.separation(); // Separation
+  const a = this.alignment(); // Alignment
+  const c = this.cohesion(); // Cohesion
+
+  // Arbitrarily weight these forces
+  s.mult(SEPRATION_WEIGHT);
+  a.mult(ALIGNMENT_WEIGHT);
+  c.mult(COHESION_WEIGHT);
+
+  // Add the force vectors to acceleration
+  this.applyForce(s);
+  this.applyForce(a);
+  this.applyForce(c);
+
   this.velocity.add(this.acceleration); // v = u + at (let the velocity get updated every tick).
   this.velocity.limit(this.maxVelocity); // max speed upper bounded.
 
-  this.transformMatrix.translate2D(this.velocity.x, this.velocity.y); // translates with wrap-around
-  this.transformMatrix.rRotate2D(this.velocity.heading() + 90.0);
+  // translates with wrap-around
+  this.transformMatrix.translate2D(this.velocity.x, this.velocity.y);
+  // reverted rotation, will revert previous rotation prior to this
+  // this.transformMatrix.rRotate2D(Math.abs(this.velocity.heading()) + 90);
 
   this.acceleration.mult(0); // reset the acceleration for each cycle.
 
@@ -199,8 +413,14 @@ Swallow.prototype.render = function() {
   push(); // push the current matrix onto the stack
 
   applyMatrix(...this.transformMatrix.getParamsForApplying());
+  rotate(this.velocity.heading() + 90.0);
 
   image(this.image, 0, 0);
 
   pop(); // pop the current matrix from the stack, replacing it to the backed up matrix
+
+  console.log(
+    `current rotation = ${this.transformMatrix.getRotation()}, velocity dir = ${this.velocity.heading()}`
+  );
 };
+//#endregion Swallow

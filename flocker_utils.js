@@ -33,7 +33,7 @@
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * @last-modified Sun Mar 11 2018 18:27:18 GMT-0700 (PDT)
+ * @last-modified Sun Mar 11 2018 20:53:03 GMT-0700 (PDT)
  */
 
 /**
@@ -53,8 +53,9 @@
  *
  * @param {number} xLimit The X axis wraparound limit.
  * @param {number} yLimit The Y axis wraparound limit.
+ * @param {number} initialRotation The initial rotation - defaults to 0.0
  */
-function Matrix4x4(xLimit, yLimit) {
+function Matrix4x4(xLimit, yLimit, initialRotation = 0.0) {
   this.value = [[1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 1, 0], [0, 0, 0, 1]]; // 4x4 identity matrix
 
   this.xWrapAround = xLimit;
@@ -68,7 +69,7 @@ function Matrix4x4(xLimit, yLimit) {
   /** @type {number}
    * Keeps track of the current rotation applied to this transformation matrix.
    */
-  this.currentRotationAngle = 0;
+  this.currentRotationAngle = initialRotation;
 }
 
 /**
@@ -215,7 +216,7 @@ Matrix4x4.prototype.rRotate2D = function(theta) {
   const rrm = [[cosT, sinT, 0, 0], [-sinT, cosT, 0, 0], [0, 0, 1, 0], [0, 0, 0, 1]]; // 2D rotation matrix
 
   this.currentRotationAngle = theta;
-  
+
   cosT = Math.cos(theta);
   sinT = Math.sin(theta);
   const rm = [[cosT, -sinT, 0, 0], [sinT, cosT, 0, 0], [0, 0, 1, 0], [0, 0, 0, 1]]; // 2D rotation matrix
