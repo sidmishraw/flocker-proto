@@ -33,7 +33,7 @@
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * @last-modified Sun Mar 11 2018 22:15:12 GMT-0700 (PDT)
+ * @last-modified Tue Mar 13 2018 14:58:12 GMT-0700 (PDT)
  */
 
 //#region GLOBAL_CONSTANTS
@@ -54,7 +54,7 @@ const MAX_ACCELERATION = 0.03;
 const flocker = new Flocker();
 
 /** @type {number} */
-const DESIRED_SEPARATION = 100.0;
+const DESIRED_SEPARATION = 0.0;
 
 /** @type {number} */
 const DESIRED_ALIGNMENT = 50.0;
@@ -94,7 +94,7 @@ function setup() {
  */
 function draw() {
   clear();
-  // flocker.drawGrid();
+  flocker.drawGrid();
   flocker.simulate();
 }
 
