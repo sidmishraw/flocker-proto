@@ -5,7 +5,7 @@ Author: Sidharth Mishra
 This is a prototype for flocking simulation app using p5.js.
 
 Following is an erratic demo (parameters are a mess) for Swallows flocking in the Flocker app.
-![Flocker demo#1](./flocker-demo.gif)
+![Flocker demo#1](./images/flocker-demo.gif)
 
 For the following simulation the parameters are set at:
 
@@ -23,7 +23,7 @@ For the following simulation the parameters are set at:
 
 * Swallow count = 30
 
-![Flocker demo#2](./flocker-demo2.gif)
+![Flocker demo#2](./images/flocker-demo2.gif)
 
 ## References
 
