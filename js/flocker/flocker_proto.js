@@ -33,7 +33,7 @@
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * @last-modified Tue Mar 13 2018 14:58:12 GMT-0700 (PDT)
+ * @last-modified Thu Mar 15 2018 15:14:26 GMT-0700 (PDT)
  */
 
 //#region GLOBAL_CONSTANTS
@@ -54,7 +54,7 @@ const MAX_ACCELERATION = 0.03;
 const flocker = new Flocker();
 
 /** @type {number} */
-const DESIRED_SEPARATION = 0.0;
+const DESIRED_SEPARATION = 50.0;
 
 /** @type {number} */
 const DESIRED_ALIGNMENT = 50.0;
@@ -162,7 +162,7 @@ Flocker.prototype.drawGrid = function drawGrid() {
  * @param {number} y The initial Y spawn location of the Swallow.
  */
 function Swallow(x, y) {
-  this.image = loadImage("./swallow-img.png"); // the Swallow itself.
+  this.image = loadImage("./resources/swallow-img.png"); // the Swallow itself.
 
   const theta = random(360.0); // generate a random angle for the direction of the Swallow
 
