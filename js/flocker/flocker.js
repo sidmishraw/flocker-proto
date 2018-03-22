@@ -1,9 +1,5 @@
 /**
- * flocker_proto.js
- * @author Sidharth Mishra
- * @description Flocker prototype.
- * @created Thu Mar 08 2018 14:24:34 GMT-0800 (PST)
- * @copyright  BSD 3-Clause License
+ *  BSD 3-Clause License
  *
  * Copyright (c) 2018, Sidharth Mishra
  * All rights reserved.
@@ -33,11 +29,15 @@
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * @last-modified Thu Mar 15 2018 15:14:26 GMT-0700 (PDT)
+ * flocker.js
+ * @author Sidharth Mishra
+ * @description Flocker core stuff goes here.
+ * @created Wed Mar 21 2018 22:28:07 GMT-0700 (PDT)
+ * @last-modified Wed Mar 21 2018 22:35:12 GMT-0700 (PDT)
  */
 
 //#region GLOBAL_CONSTANTS
-/** Some helpful constants*/
+
 /** @type {number} */
 const MAX_WRAP_AROUND_WIDTH = 816; //640;
 

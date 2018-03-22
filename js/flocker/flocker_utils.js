@@ -1,9 +1,5 @@
 /**
- * flocker_utils.js
- * @author Sidharth Mishra
- * @description Contains various utility functions to be used in Flocker app.
- * @created Fri Mar 09 2018 18:47:43 GMT-0800 (PST)
- * @copyright  BSD 3-Clause License
+ *  BSD 3-Clause License
  *
  * Copyright (c) 2018, Sidharth Mishra
  * All rights reserved.
@@ -33,7 +29,11 @@
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * @last-modified Sun Mar 11 2018 20:53:03 GMT-0700 (PDT)
+ * flocker_utils.js
+ * @author Sidharth Mishra
+ * @description Contains various utility functions to be used in Flocker app.
+ * @created Wed Mar 21 2018 22:28:07 GMT-0700 (PDT)
+ * @last-modified Wed Mar 21 2018 22:34:52 GMT-0700 (PDT)
  */
 
 /**
