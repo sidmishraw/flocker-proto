@@ -7,7 +7,7 @@
     "ecmaFeatures": {
       "jsx": true
     },
-    "sourceType": "script",
+    "sourceType": "module",
     "ecmaVersion": 6
   },
   "rules": {
